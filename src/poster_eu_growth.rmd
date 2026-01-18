@@ -1,0 +1,362 @@
+---
+output:
+  html_document:
+    css: poster.css
+    self_contained: true
+    toc: false
+    includes:
+      in_header: poster_print_header.html
+bibliography: references.bib
+csl: apa.csl
+link-citations: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center"
+)
+```
+
+```{r load-packages, include=FALSE}
+# Load required packages for visualization only
+library(tidyverse)
+library(kableExtra)
+library(scales)
+library(plm)
+```
+
+```{r load-data, include=FALSE}
+# Load pre-computed analysis objects
+# NO model estimation - only loading saved results
+panel_data <- readRDS("rds/panel_data.rds")
+fe_model <- readRDS("rds/fe_model.rds")
+re_model <- readRDS("rds/re_model.rds")
+```
+
+```{r prepare-viz, include=FALSE}
+# Prepare data for visualization (no estimation)
+
+# Country names mapping
+country_names <- c(
+  "AT" = "Austria", "BE" = "Belgium", "BG" = "Bulgaria", "HR" = "Croatia",
+  "CY" = "Cyprus", "CZ" = "Czechia", "DK" = "Denmark", "EE" = "Estonia",
+  "FI" = "Finland", "FR" = "France", "DE" = "Germany", "EL" = "Greece",
+  "HU" = "Hungary", "IE" = "Ireland", "IT" = "Italy", "LV" = "Latvia",
+  "LT" = "Lithuania", "LU" = "Luxembourg", "MT" = "Malta", "NL" = "Netherlands",
+  "PL" = "Poland", "PT" = "Portugal", "RO" = "Romania", "SK" = "Slovakia",
+  "SI" = "Slovenia", "ES" = "Spain", "SE" = "Sweden"
+)
+
+# Add country names if not present
+if (!"country_name" %in% names(panel_data)) {
+  panel_data <- panel_data %>%
+    mutate(country_name = country_names[geo])
+}
+
+# Extract FE model coefficients manually (plm objects need special handling)
+fe_summary <- summary(fe_model)
+fe_coef_matrix <- fe_summary$coefficients
+model_coefs <- data.frame(
+  term = rownames(fe_coef_matrix),
+  estimate = fe_coef_matrix[, "Estimate"],
+  std.error = fe_coef_matrix[, "Std. Error"],
+  statistic = fe_coef_matrix[, "t-value"],
+  p.value = fe_coef_matrix[, "Pr(>|t|)"]
+) %>%
+  mutate(
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error,
+    term = case_when(
+      term == "migration_rate" ~ "Migration Rate",
+      term == "unemployment_rate" ~ "Unemployment Rate",
+      term == "investment_rate" ~ "Investment Rate",
+      TRUE ~ term
+    ),
+    significance = case_when(
+      p.value < 0.001 ~ "***",
+      p.value < 0.01 ~ "**",
+      p.value < 0.05 ~ "*",
+      p.value < 0.1 ~ ".",
+      TRUE ~ ""
+    )
+  )
+
+# Extract RE model coefficients for coefficient plot
+re_summary <- summary(re_model)
+re_coef_matrix <- re_summary$coefficients
+re_coefs <- data.frame(
+  term = rownames(re_coef_matrix),
+  estimate = re_coef_matrix[, "Estimate"],
+  std.error = re_coef_matrix[, "Std. Error"],
+  statistic = re_coef_matrix[, "z-value"],
+  p.value = re_coef_matrix[, "Pr(>|z|)"]
+) %>%
+  filter(term != "(Intercept)") %>%
+  mutate(
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error,
+    Variable = case_when(
+      term == "migration_rate" ~ "Migration Rate",
+      term == "unemployment_rate" ~ "Unemployment Rate",
+      term == "investment_rate" ~ "Investment Rate",
+      TRUE ~ term
+    ),
+    significant = p.value < 0.05
+  )
+
+# Summary statistics for display
+summary_stats <- panel_data %>%
+  summarise(
+    Countries = n_distinct(geo),
+    Years = n_distinct(time),
+    Observations = n(),
+    `Time Period` = paste(min(time), "–", max(time))
+  )
+```
+
+<!-- ========== POSTER CONTAINER ========== -->
+<div class="poster-container">
+
+<!-- ========== HEADER ========== -->
+<div class="poster-header">
+<div class="header-content">
+
+<div class="logo-left">
+<img src="../images/NOVAIMS_Logo.png" alt="NOVA IMS Logo" style="max-height: 80px; width: auto;">
+</div>
+
+<div class="title-section">
+<h1 class="poster-title">Determinants of GDP per Capita Growth in the EU</h1>
+<h2 class="poster-subtitle">A Panel Data Analysis (2014–2023)</h2>
+<p class="poster-authors">Mehmet Karaca &nbsp;|&nbsp; Alexander XY &nbsp;|&nbsp; Ammar &nbsp;|&nbsp; Khuzaima</p>
+<p class="poster-affiliation">NOVA Information Management School (NOVA IMS), Lisbon</p>
+</div>
+
+<div class="logo-right">
+<img src="../images/EU_logo.png" alt="European Union Logo" style="max-height: 80px; width: auto;">
+</div>
+
+</div>
+</div>
+
+<!-- ========== MAIN CONTENT (3 COLUMNS) ========== -->
+<div class="poster-body">
+<div class="column-container">
+
+<!-- ========== COLUMN 1: Introduction ========== -->
+<div class="column">
+<div class="column-content">
+
+<div class="section medium">
+<h3>Introduction</h3>
+
+<div class="stat-box">
+<div class="stat-item">
+<span class="key-number">27</span>
+<span class="key-label">EU Countries</span>
+</div>
+<div class="stat-item">
+<span class="key-number">10</span>
+<span class="key-label">Years</span>
+</div>
+<div class="stat-item">
+<span class="key-number">~270</span>
+<span class="key-label">Observations</span>
+</div>
+</div>
+
+- **Context:** Migration crisis (2015), COVID-19 (2020), recovery (2021–22)
+- **Goal:** Identify key drivers of economic growth across EU
+- **Approach:** Panel econometrics with country fixed effects
+
+</div>
+
+<div class="section compact">
+<h3>Research Question</h3>
+
+<div class="highlight-box">
+**How do migration, unemployment, and investment affect GDP per capita growth in the EU?**
+</div>
+
+</div>
+
+<div class="section medium">
+<h3>Hypotheses</h3>
+
+- **H1:** Migration ↑ → GDP Growth ↑ *(Labor supply)*
+- **H2:** Unemployment ↑ → GDP Growth ↓ *(Demand loss)*
+- **H3:** Investment ↑ → GDP Growth ↑ *(Capital accumulation)*
+
+</div>
+
+</div>
+</div>
+
+<!-- ========== COLUMN 2: Data & Methodology ========== -->
+<div class="column">
+<div class="column-content">
+
+<div class="section medium">
+<h3>Data</h3>
+
+**Source:** Eurostat (2014–2023)
+
+| Variable | Description | Unit |
+|----------|-------------|------|
+| **GDP Growth** | Real GDP per capita growth | % |
+| **Migration** | Net migration rate | ‰ |
+| **Unemployment** | Rate (15–74 years) | % |
+| **Investment** | Gross fixed capital formation | % GDP |
+
+</div>
+
+<div class="section medium">
+<h3>Methodology</h3>
+
+**Panel Models Compared:**
+
+| Model | Purpose |
+|-------|---------|
+| Pooled OLS | Baseline |
+| **Fixed Effects** | Controls unobserved heterogeneity |
+| Random Effects | Efficiency under exogeneity |
+
+**Model Selection:**
+- Hausman Test → **FE preferred**
+- F-Test → Individual effects significant
+- Robust SE (cluster) for inference
+
+</div>
+
+<div class="section compact">
+<h3>Diagnostics</h3>
+
+| Test | Result | Action |
+|------|--------|--------|
+| Hausman | p < 0.05 | → Use FE |
+| F-Test | p < 0.001 | → Effects present |
+| BP (Hetero.) | p < 0.05 | → Robust SE |
+
+**→ FE model with cluster-robust SE**
+
+</div>
+
+</div>
+</div>
+
+<!-- ========== COLUMN 3: Results & Conclusion ========== -->
+<div class="column">
+<div class="column-content">
+
+<div class="section large">
+<h3>Results</h3>
+
+```{r plot-coefficients, fig.width=7, fig.height=2.5, out.width="100%"}
+# Coefficient plot for Random Effects model
+ggplot(re_coefs, aes(x = estimate, y = reorder(Variable, estimate))) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "#718096", linewidth = 0.8) +
+  geom_errorbarh(
+    aes(xmin = conf.low, xmax = conf.high),
+    height = 0.3,
+    linewidth = 1.5,
+    color = "#4a5568"
+  ) +
+  geom_point(
+    aes(fill = significant),
+    size = 6,
+    shape = 21,
+    color = "white",
+    stroke = 2
+  ) +
+  scale_fill_manual(
+    values = c("TRUE" = "#c0d530", "FALSE" = "#cbd5e0"),
+    labels = c("TRUE" = "p < 0.05", "FALSE" = "p ≥ 0.05"),
+    name = NULL
+  ) +
+  labs(x = "Effect on GDP Growth (%)", y = NULL) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "top",
+    legend.text = element_text(size = 12, face = "bold"),
+    axis.title.x = element_text(size = 13, face = "bold", color = "#4a5568"),
+    axis.text.y = element_text(size = 13, face = "bold", color = "#2d3748"),
+    axis.text.x = element_text(size = 12),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    plot.margin = margin(5, 15, 5, 5)
+  )
+```
+
+```{r results-table}
+# Create compact results table
+results_df <- data.frame(
+  Variable = c("Migration Rate", "Unemployment Rate", "Investment Rate"),
+  Coef = sprintf("%.3f", re_coefs$estimate),
+  SE = sprintf("%.3f", re_coefs$std.error),
+  Sig = case_when(
+    re_coefs$p.value < 0.001 ~ "***",
+    re_coefs$p.value < 0.01 ~ "**",
+    re_coefs$p.value < 0.05 ~ "*",
+    TRUE ~ ""
+  ),
+  check.names = FALSE
+)
+
+kable(results_df, align = c("l", "r", "r", "c")) %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"), 
+                full_width = TRUE, font_size = 11)
+```
+
+<small>*p<.05, **p<.01, ***p<.001 | RE model, robust SE</small>
+
+</div>
+
+<div class="section medium">
+<h3>Key Findings</h3>
+
+<div class="finding">
+📉 **Unemployment → Negative effect** on GDP growth (significant)
+</div>
+
+<div class="finding">
+📈 **Investment → Positive effect** on GDP growth (significant)
+</div>
+
+<div class="finding">
+🌍 **Migration → Mixed results** depending on specification
+</div>
+
+</div>
+
+<div class="section medium">
+<h3>Conclusion</h3>
+
+<div class="conclusion-box">
+
+**Policy Implications:**
+
+1. **Reduce unemployment** → strongest growth lever
+2. **Stimulate investment** → capital formation matters
+3. **Migration policy** → context-specific analysis needed
+
+</div>
+
+</div>
+
+<div class="section compact references-section">
+<h3>References</h3>
+<div class="references-list">
+Eurostat (2024) · Boubtane et al. (2016) · Ortega & Peri (2013) · Wooldridge (2010)
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
