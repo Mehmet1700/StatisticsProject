@@ -636,7 +636,7 @@ The Hausman test examines whether the country-specific effects are correlated wi
 - **H1**: Fixed effects model is consistent (use FE)
 
 ```{r hausman}
-hausman_test <- phtest(fe_model, re_model)
+hausman_test <- phtest(fe_model, re_model, method = "aux")
 hausman_test
 ```
 
@@ -675,29 +675,6 @@ if (f_test$p.value < 0.05) {
       "Pooled OLS may be adequate.")
 }
 ```
-
-## Breusch-Pagan LM Test for Random Effects
-
-Testing whether random effects are present:
-
-- **H0**: Variance of individual effects is zero (Pooled OLS is adequate)
-- **H1**: Random effects are present
-
-```{r bp-lm-test}
-bp_lm_test <- plmtest(pooled_ols, type = "bp")
-bp_lm_test
-```
-
-```{r bp-lm-interpretation, echo=FALSE}
-if (bp_lm_test$p.value < 0.05) {
-  cat("**Interpretation:** The Breusch-Pagan LM test is significant (p =", format(bp_lm_test$p.value, scientific = TRUE, digits = 3), 
-      ").\n", "There is evidence of significant individual effects; Pooled OLS is inappropriate.")
-} else {
-  cat("**Interpretation:** The Breusch-Pagan LM test is not significant (p =", round(bp_lm_test$p.value, 4), 
-      ").\n", "No evidence of significant individual effects.")
-}
-```
-
 ## Test for Heteroskedasticity
 
 ### Breusch-Pagan Test
@@ -749,38 +726,6 @@ ggplot(resid_df, aes(x = Fitted, y = Residuals)) +
 ```
 
 ## Test for Serial Correlation
-
-### Breusch-Godfrey/Wooldridge Test
-
-Testing for first-order serial correlation in panel models:
-
-- **H0**: No serial correlation
-- **H1**: Serial correlation present
-
-```{r serial-correlation-test}
-bg_test <- pbgtest(fe_model, order = 1)
-bg_test
-```
-
-```{r serial-interpretation, echo=FALSE}
-if (bg_test$p.value < 0.05) {
-  cat("**Interpretation:** The Breusch-Godfrey test is significant (p =", round(bg_test$p.value, 4), 
-      ").\n", "There is evidence of first-order serial correlation.\n",
-      "**Newey-West or cluster-robust standard errors are recommended.**")
-} else {
-  cat("**Interpretation:** The Breusch-Godfrey test is not significant (p =", round(bg_test$p.value, 4), 
-      ").\n", "No strong evidence of serial correlation.")
-}
-```
-
-### Durbin-Watson Test
-
-```{r dw-test}
-dw_test <- pdwtest(fe_model)
-dw_test
-```
-
-**Note:** Durbin-Watson statistic close to 2 indicates no autocorrelation. Values < 2 suggest positive autocorrelation, > 2 suggest negative autocorrelation.
 
 ## Cross-Sectional Dependence
 
@@ -880,17 +825,6 @@ re_robust <- coeftest(
 re_robust
 ```
 
-### Newey-West Standard Errors (HAC)
-
-Heteroskedasticity and Autocorrelation Consistent (HAC) standard errors account for both heteroskedasticity and serial correlation:
-
-```{r nw-all}
-# Newey-West for all models
-pooled_nw <- coeftest(pooled_ols, vcov = vcovNW(pooled_ols))
-fe_nw <- coeftest(fe_model, vcov = vcovNW(fe_model))
-re_nw <- coeftest(re_model, vcov = vcovNW(re_model))
-```
-
 ### Comparison of Standard Errors Across Models
 
 ```{r se-comparison}
@@ -907,20 +841,14 @@ se_comparison <- data.frame(
     pooled_robust[-1, "Std. Error"],
     fe_robust[, "Std. Error"],
     re_robust[-1, "Std. Error"]
-  ),
-  `Newey-West SE` = c(
-    pooled_nw[-1, "Std. Error"],
-    fe_nw[, "Std. Error"],
-    re_nw[-1, "Std. Error"]
   )
 ) %>%
   mutate(
     `Conventional SE` = round(`Conventional.SE`, 4),
     `Cluster-Robust SE` = round(`Cluster.Robust.SE`, 4),
-    `Newey-West SE` = round(`Newey.West.SE`, 4),
     `SE Inflation (%)` = round((`Cluster.Robust.SE` / `Conventional.SE` - 1) * 100, 1)
   ) %>%
-  select(Variable, Model, `Conventional SE`, `Cluster-Robust SE`, `Newey-West SE`, `SE Inflation (%)`)
+  select(Variable, Model, `Conventional SE`, `Cluster-Robust SE`, `SE Inflation (%)`)
 
 kable(se_comparison, caption = "Comparison of Standard Error Estimates Across All Models") %>%
   kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
