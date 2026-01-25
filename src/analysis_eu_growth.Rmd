@@ -636,7 +636,7 @@ The Hausman test examines whether the country-specific effects are correlated wi
 - **H1**: Fixed effects model is consistent (use FE)
 
 ```{r hausman}
-hausman_test <- phtest(fe_model, re_model, method = "aux")
+hausman_test <- phtest(fe_model, re_model, vcov = function(x) vcovHC(x, method="white2", type="HC3"))
 hausman_test
 ```
 
