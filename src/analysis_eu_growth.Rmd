@@ -26,6 +26,8 @@ knitr::opts_chunk$set(
 
 # Setup
 
+This section loads the required R packages for data retrieval, manipulation, panel econometrics, and visualization.
+
 ```{r libraries}
 library(eurostat)
 library(tidyverse)
@@ -44,6 +46,8 @@ library(moments)
 We use annual panel data from Eurostat for EU-27 countries covering the period 2013–2023.
 The dataset includes information on GDP per capita, migration, unemployment, and investment.
 
+> **Note on sample period:** Raw data are available for 2013–2023, but the final analysis sample covers 2014–2023. GDP per capita growth is computed as the log difference relative to the previous year, which requires lagged observations. As a result, growth rates for 2013 cannot be computed and these observations are excluded from the regression sample.
+
 | Variable | Eurostat Code | Description |
 |----------|---------------|-------------|
 | GDP per capita | `sdg_08_10` | Real GDP per capita in PPS |
@@ -52,7 +56,41 @@ The dataset includes information on GDP per capita, migration, unemployment, and
 | Unemployment | `une_rt_a` | Unemployment rate (% of active population) |
 | Investment Rate | `sdg_08_11` | Gross fixed capital formation (% of GDP) |
 
+# Theoretical Background and Hypotheses
+
+This study examines the determinants of GDP per capita growth in the European Union, focusing on three key macroeconomic variables: unemployment, investment, and migration. Each variable is grounded in established economic theory, which informs the directional hypotheses tested in the empirical analysis.
+
+## Theoretical Framework
+
+**Unemployment and Economic Growth.** The negative relationship between unemployment and output growth is well-documented in macroeconomic literature, most notably through Okun's Law [@okun1962]. Okun observed that for every percentage point increase in unemployment above the natural rate, real GDP falls by approximately 2–3 percent. This relationship reflects the direct loss of productive capacity when labor resources remain idle, as well as indirect effects through reduced consumer spending and lower aggregate demand.
+
+**Investment and Economic Growth.** The Solow-Swan neoclassical growth model [@solow1956] establishes investment as a fundamental driver of long-run economic growth. Higher rates of gross fixed capital formation expand the capital stock, increase labor productivity, and shift the economy toward a higher steady-state level of output per capita. In the short to medium run, investment also stimulates aggregate demand, reinforcing its positive effect on growth.
+
+**Migration and Economic Growth.** The relationship between migration and economic growth is theoretically ambiguous. On the one hand, net immigration expands the labor force, increases productive capacity, and can alleviate demographic pressures associated with aging populations—effects emphasized in the endogenous growth literature [@romer1990]. On the other hand, large immigration inflows may depress wages in the short run, strain public services, or dilute capital per worker if investment does not keep pace. Empirical evidence across EU countries suggests that the labor supply and human capital effects tend to dominate, yielding a modest positive relationship between migration and growth, particularly in economies with flexible labor markets [@docquier2014].
+
+## Hypotheses
+
+Based on the theoretical considerations above, we formulate the following directional hypotheses:
+
+> **H1 (Unemployment):** There is a negative relationship between unemployment rate and GDP per capita growth. Higher unemployment represents underutilized labor resources and reduced aggregate demand, both of which suppress output growth (Okun's Law).
+
+> **H2 (Investment):** There is a positive relationship between gross fixed capital formation (as a share of GDP) and GDP per capita growth. Capital accumulation increases productive capacity and drives both short-run demand effects and long-run supply-side growth (Solow growth model).
+
+> **H3 (Migration):** There is a positive relationship between net migration rate and GDP per capita growth. Despite theoretical ambiguity regarding the short-run effects of immigration, we hypothesize that labor force expansion and the demographic contributions of migrants outweigh any capital-dilution effects, yielding a net positive association with growth.
+
+These hypotheses are tested using panel data methods that account for unobserved country heterogeneity and common time shocks.
+
+### Summary of Testable Hypotheses
+
+For clarity, the hypotheses tested in this analysis are:
+
+- **H1:** Higher unemployment is negatively associated with GDP growth (based on Okun's Law).
+- **H2:** Higher investment rates are positively associated with GDP growth (based on Solow Growth Model).
+- **H3:** Net migration has a positive association with economic growth (through labor supply expansion).
+
 # Data Preparation
+
+This section retrieves raw data from Eurostat and processes each variable (GDP, migration, unemployment, investment) for subsequent analysis.
 
 ## GDP per Capita
 
@@ -155,6 +193,8 @@ investment <- investment_raw %>%
 
 # Panel Construction
 
+This section merges all variables into a unified panel dataset for the EU-27 countries and computes the dependent variable (GDP per capita growth).
+
 ## EU-27 Countries
 
 ```{r panel-construction}
@@ -202,6 +242,8 @@ panel_data <- gdp_pc %>%
 
 # Final Dataset Check
 
+This section verifies the panel dimensions, checks for balance, and confirms the final sample structure before analysis.
+
 ```{r dataset-summary}
 panel_data %>%
 summarise(
@@ -215,7 +257,18 @@ observations = n()
 table(table(panel_data$geo))
 ```
 
+```{r check}
+panel_data %>%
+  count(geo, name = "n_obs") %>%
+  arrange(n_obs)
+```
+
+> **Note on panel balance:** The dataset is nearly balanced, with 26 of 27 countries contributing the full 10 years of observations (2014–2023). Bulgaria has 9 observations due to one missing year in the source data. This minor imbalance does not affect the validity of the panel estimators, as both Fixed Effects and Random Effects accommodate unbalanced panels. No observations are dropped or imputed to address this issue.
+
+
 # Descriptive Statistics
+
+This section presents summary statistics, variance decomposition (between vs. within), and correlation analysis to characterize the data before regression modeling.
 
 ## Summary Statistics
 
@@ -415,6 +468,8 @@ corrplot(cor_matrix,
 
 # Data Visualization
 
+This section provides graphical exploration of the data, including time series plots, cross-country comparisons, and scatter plots of bivariate relationships.
+
 ## GDP per Capita Growth Over Time
 
 ```{r gdp-growth-time, fig.height=8}
@@ -575,7 +630,125 @@ ggplot(panel_data, aes(x = investment_rate, y = gdp_pc_growth)) +
   scale_color_viridis_d(option = "turbo")
 ```
 
+## Evolution of Key Variables: Selected Countries
+
+To provide a more granular view of the data underlying the regression analysis, the figure below traces the temporal evolution of the three main explanatory variables—migration rate, unemployment rate, and investment rate—for ten representative EU economies. The selection spans core Western European economies (Germany, France, Netherlands), Southern European states (Spain, Italy, Portugal, Greece), Northern Europe (Sweden), Central-Eastern Europe (Poland), and a high-growth outlier (Ireland). This diversity captures the heterogeneity in economic structures and trajectories that motivates the panel data approach.
+
+```{r variable-evolution-selected, fig.height=12, fig.width=12, fig.cap="Evolution of key explanatory variables and GDP per capita growth (2014–2023) for ten representative EU economies. Each panel displays one country; lines represent the migration rate (per 1,000 inhabitants), unemployment rate (%), and investment rate (% of GDP) on the left axis, with GDP per capita growth (%) shown on the right axis. The plot illustrates cross-country heterogeneity in variable trajectories and highlights common shocks such as the COVID-19 pandemic (2020–2021)."}
+# Select representative countries across EU regions
+selected_countries <- c("DE", "FR", "ES", "IT", "PL", "NL", "PT", "SE", "EL", "IE")
+selected_names <- c(
+  "DE" = "Germany", "FR" = "France", "ES" = "Spain", "IT" = "Italy",
+  "PL" = "Poland", "NL" = "Netherlands", "PT" = "Portugal", "SE" = "Sweden",
+  "EL" = "Greece", "IE" = "Ireland"
+)
+
+# Prepare data for plotting - use GDP growth rate (%) for consistency with Figure 7.1
+evolution_data <- panel_data %>%
+  filter(geo %in% selected_countries) %>%
+  mutate(country_label = selected_names[geo]) %>%
+  select(country_label, time, migration_rate, unemployment_rate, investment_rate, gdp_pc_growth)
+
+# Separate data for explanatory variables
+expl_vars_data <- evolution_data %>%
+  select(country_label, time, migration_rate, unemployment_rate, investment_rate) %>%
+  pivot_longer(
+    cols = c(migration_rate, unemployment_rate, investment_rate),
+    names_to = "Variable",
+    values_to = "Value"
+  ) %>%
+  mutate(
+    Variable = case_when(
+      Variable == "migration_rate" ~ "Migration Rate (per 1,000)",
+      Variable == "unemployment_rate" ~ "Unemployment Rate (%)",
+      Variable == "investment_rate" ~ "Investment Rate (% of GDP)"
+    ),
+    Variable = factor(Variable, levels = c(
+      "Migration Rate (per 1,000)",
+      "Unemployment Rate (%)",
+      "Investment Rate (% of GDP)"
+    ))
+  )
+
+# GDP growth data for secondary axis
+gdp_data <- evolution_data %>%
+  select(country_label, time, gdp_pc_growth)
+
+# Scaling for secondary axis: GDP growth typically ranges from -15 to +25
+# Map to similar range as other variables (~0-30)
+gdp_scale_factor <- 1  # GDP growth is already in percentage points, similar scale
+gdp_shift <- 0  # No shift needed
+
+# Create faceted line plot with dual axis
+ggplot() +
+  # Explanatory variables (left axis)
+  geom_line(data = expl_vars_data, 
+            aes(x = time, y = Value, color = Variable, linetype = Variable),
+            linewidth = 1) +
+  geom_point(data = expl_vars_data, 
+             aes(x = time, y = Value, color = Variable),
+             size = 2, alpha = 0.8) +
+  # GDP growth (right axis)
+  geom_line(data = gdp_data,
+            aes(x = time, y = gdp_pc_growth),
+            color = "#7B3294", linewidth = 1.2, alpha = 0.8) +
+  geom_point(data = gdp_data,
+             aes(x = time, y = gdp_pc_growth),
+             color = "#7B3294", size = 2.5, shape = 17, alpha = 0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40", linewidth = 0.5) +
+  facet_wrap(~ country_label, ncol = 2, scales = "free_y") +
+  scale_x_continuous(breaks = seq(2014, 2023, 2)) +
+  scale_y_continuous(
+    name = "Value (Migration, Unemployment, Investment)",
+    sec.axis = sec_axis(
+      ~ .,
+      name = "GDP per Capita Growth (%)"
+    )
+  ) +
+  scale_color_manual(
+    values = c(
+      "Migration Rate (per 1,000)" = "#2166AC",
+      "Unemployment Rate (%)" = "#B2182B",
+      "Investment Rate (% of GDP)" = "#1B7837"
+    )
+  ) +
+  scale_linetype_manual(
+    values = c(
+      "Migration Rate (per 1,000)" = "solid",
+      "Unemployment Rate (%)" = "dashed",
+      "Investment Rate (% of GDP)" = "dotted"
+    )
+  ) +
+  labs(
+    title = "Evolution of Key Variables and GDP per Capita Growth (2014–2023)",
+    subtitle = "Selected EU economies | Purple triangles: GDP per capita growth (%, right axis)",
+    x = "Year",
+    color = "Explanatory Variables",
+    linetype = "Explanatory Variables"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 11),
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(color = "gray40"),
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y.right = element_text(color = "#7B3294", face = "bold"),
+    axis.text.y.right = element_text(color = "#7B3294")
+  ) +
+  guides(
+    color = guide_legend(nrow = 1),
+    linetype = guide_legend(nrow = 1)
+  )
+```
+
+The figure reveals substantial cross-country heterogeneity in variable levels and trajectories. The COVID-19 shock (2020) is visible as a sharp GDP contraction followed by V-shaped recovery across all countries. These differences in levels and dynamics motivate the use of fixed effects to absorb time-invariant country characteristics.
+
 # Econometric Analysis
+
+This section estimates the panel regression models (Pooled OLS, Fixed Effects, Random Effects) to test the hypotheses regarding the determinants of GDP growth.
 
 ## Panel Data Setup
 
@@ -604,17 +777,83 @@ summary(pooled_ols)
 
 ## Fixed Effects Model
 
+### Why Two-Way Fixed Effects?
+
+The sample period 2014–2023 includes several major global shocks that affected all EU countries simultaneously:
+
+- **COVID-19 pandemic (2020):** An unprecedented exogenous shock causing synchronized GDP contractions across the EU, followed by a strong rebound in 2021.
+- **Energy crisis and inflation surge (2022):** The war in Ukraine triggered energy price spikes and inflationary pressures affecting all member states.
+- **European debt crisis aftermath (2014–2015):** Lingering effects of the sovereign debt crisis, particularly in Southern Europe.
+
+A one-way fixed effects model (controlling only for country heterogeneity) would attribute these common time shocks to the explanatory variables, leading to **omitted variable bias**. For instance, if unemployment rose across all countries in 2020 due to COVID-19 (a common shock), a one-way FE model might incorrectly estimate a spuriously strong negative relationship between unemployment and growth.
+
+**Two-way fixed effects** address this by including both:
+
+1. **Country fixed effects ($\alpha_i$):** Control for time-invariant country characteristics (institutions, geography, culture)
+2. **Time fixed effects ($\lambda_t$):** Control for year-specific shocks common to all countries (COVID-19, energy crisis, EU-wide policies)
+
+The model specification becomes:
+$$\text{GDP Growth}_{it} = \beta_1 \text{Migration}_{it} + \beta_2 \text{Unemployment}_{it} + \beta_3 \text{Investment}_{it} + \alpha_i + \lambda_t + \varepsilon_{it}$$
+
+This ensures that the coefficients $\beta$ capture only the within-country, within-year variation in the explanatory variables—purged of both country-specific and time-specific confounders.
+
+### One-Way Fixed Effects (Country Only)
+
+For comparison, we first estimate the one-way FE model:
+
+```{r fe-oneway}
+fe_model_oneway <- plm(
+  gdp_pc_growth ~ migration_rate + unemployment_rate + investment_rate,
+  data = pdata,
+  model = "within",
+  effect = "individual"
+)
+
+summary(fe_model_oneway)
+```
+
+### Two-Way Fixed Effects (Country + Time)
+
 ```{r fe}
 fe_model <- plm(
   gdp_pc_growth ~ migration_rate + unemployment_rate + investment_rate,
   data = pdata,
-  model = "within"
+  model = "within",
+  effect = "twoways"
 )
 
 summary(fe_model)
 ```
 
+### Test for Significance of Time Effects
+
+To formally test whether time fixed effects are necessary, we compare the two-way FE model against the one-way FE model:
+
+- **H0:** Time effects are jointly zero (one-way FE is adequate)
+- **H1:** Time effects are significant (two-way FE is needed)
+
+```{r f-test-time}
+f_test_time <- pFtest(fe_model, fe_model_oneway)
+f_test_time
+```
+
+```{r f-test-time-interpretation, echo=FALSE}
+if (f_test_time$p.value < 0.05) {
+  cat("**Interpretation:** The F-test for time effects is significant (p =", format(f_test_time$p.value, scientific = TRUE, digits = 3), 
+      "). Time fixed effects are jointly significant.\n",
+      "The two-way FE model is preferred, confirming that common shocks (e.g., COVID-19) must be controlled for.")
+} else {
+  cat("**Interpretation:** The F-test for time effects is not significant (p =", round(f_test_time$p.value, 4), 
+      "). Time fixed effects are not jointly significant.\n",
+      "The one-way FE model may be adequate, though the two-way specification remains more conservative.")
+}
+```
+
 ## Random Effects Model
+
+The Random Effects model assumes that country-specific effects are uncorrelated with the regressors and can be treated as random draws from a population distribution. This allows for more efficient estimation when the assumption holds.
+
+> **Note on two-way Random Effects:** While the Fixed Effects model above uses a two-way specification (country + time), the standard Random Effects estimator in `plm` defaults to one-way (individual) effects. Two-way RE models are less commonly implemented and require additional assumptions. For the Hausman test comparison, we use the one-way RE model, acknowledging that this is a limitation. If the Hausman test rejects RE in favor of FE, the two-way FE model remains the preferred specification.
 
 ```{r re}
 re_model <- plm(
@@ -628,36 +867,131 @@ summary(re_model)
 
 # Diagnostic Tests
 
-## Hausman Test: FE vs. RE
+This section conducts the standard specification tests to guide model selection.
+
+## Breusch-Pagan LM Test: RE vs. Pooled OLS
+
+The Breusch-Pagan Lagrange Multiplier test examines whether there are significant individual effects that justify using Random Effects over Pooled OLS.
+
+- **H0**: No individual effects (Pooled OLS is adequate)
+- **H1**: Significant individual effects (Random Effects is needed)
+
+```{r bp-lm-test}
+bp_lm_test <- plmtest(pooled_ols, type = "bp")
+bp_lm_test
+```
+
+```{r bp-lm-interpretation, echo=FALSE}
+if (bp_lm_test$p.value < 0.05) {
+  cat("**Interpretation:** The BP-LM test is significant (p =", round(bp_lm_test$p.value, 4), 
+      "). We reject H0 and conclude that individual effects are present.\n",
+      "Pooled OLS is inappropriate; a panel model (FE or RE) should be used.")
+} else {
+  cat("**Interpretation:** The BP-LM test is not significant (p =", round(bp_lm_test$p.value, 4), 
+      "). We fail to reject H0.\n",
+      "Pooled OLS may be adequate, as no significant individual effects are detected.")
+}
+```
+
+## Step 1: Test for Heteroskedasticity
+
+Before conducting the Hausman test, we must first diagnose whether heteroskedasticity is present in the data. This is critical because the validity of the standard Hausman test depends on the assumption of homoskedastic errors.
+
+- **H0**: Homoskedasticity (constant variance of errors)
+- **H1**: Heteroskedasticity (non-constant variance of errors)
+
+```{r bp-heteroskedasticity}
+bp_hetero_test <- bptest(fe_model, data = pdata, studentize = TRUE)
+bp_hetero_test
+```
+
+```{r bp-hetero-interpretation, echo=FALSE}
+if (bp_hetero_test$p.value < 0.05) {
+  cat("**Interpretation:** The Breusch-Pagan test rejects the null hypothesis of homoskedasticity (p =", 
+      round(bp_hetero_test$p.value, 4), ").\n",
+      "This implies that standard errors and the standard Hausman test statistic may be biased.\n",
+      "We must therefore use a **Robust Hausman test** that accounts for heteroskedasticity.")
+} else {
+  cat("**Interpretation:** The Breusch-Pagan test does not reject homoskedasticity (p =", 
+      round(bp_hetero_test$p.value, 4), ").\n",
+      "Standard errors and the standard Hausman test are valid.")
+}
+```
+
+## Step 2: Hausman Tests (Standard vs. Robust)
 
 The Hausman test examines whether the country-specific effects are correlated with the regressors.
 
 - **H0**: Random effects model is consistent and efficient (use RE)
 - **H1**: Fixed effects model is consistent (use FE)
 
-```{r hausman}
-hausman_test <- phtest(fe_model, re_model, vcov = function(x) vcovHC(x, method="white2", type="HC3"))
+### Standard Hausman Test
+
+```{r hausman-standard}
+hausman_test <- phtest(fe_model, re_model)
 hausman_test
 ```
 
+### Robust Hausman Test (Heteroskedasticity-Consistent)
+
+```{r hausman-robust}
+hausman_robust <- phtest(fe_model, re_model, vcov = vcovHC)
+hausman_robust
+```
+
+```{r hausman-comparison, echo=FALSE}
+cat("### Comparison of Hausman Test Results\n\n")
+cat("| Test Version | Chi-Squared | P-Value | Decision |\n")
+cat("|--------------|-------------|---------|----------|\n")
+cat("| Standard     |", round(hausman_test$statistic, 3), "|", round(hausman_test$p.value, 4), "|", 
+    ifelse(hausman_test$p.value < 0.05, "Reject H0 (Use FE)", "Fail to Reject (Use RE)"), "|\n")
+cat("| Robust (vcovHC) |", round(hausman_robust$statistic, 3), "|", round(hausman_robust$p.value, 4), "|", 
+    ifelse(hausman_robust$p.value < 0.05, "Reject H0 (Use FE)", "Fail to Reject (Use RE)"), "|\n")
+```
+
 ```{r hausman-interpretation, echo=FALSE}
-if (hausman_test$p.value < 0.05) {
-  cat("**Interpretation:** The Hausman test is significant (p =", round(hausman_test$p.value, 4), 
-      "). We reject H0 and prefer the **Fixed Effects** model.\n",
-      "This suggests that country-specific effects are correlated with the explanatory variables.")
+if (bp_hetero_test$p.value < 0.05) {
+  cat("\n**Interpretation:** Since we detected heteroskedasticity in Step 1, the Standard Hausman test is theoretically invalid. ",
+      "However, we show both for comparison. ")
+  if (hausman_robust$p.value < 0.05) {
+    cat("The **Robust Hausman test** (which accounts for heteroskedasticity) confirms that the ",
+        "**Fixed Effects model** is preferred (p =", round(hausman_robust$p.value, 4), "< 0.05).")
+  } else {
+    cat("The **Robust Hausman test** (which accounts for heteroskedasticity) suggests that the ",
+        "**Random Effects model** may be preferred (p =", round(hausman_robust$p.value, 4), ">= 0.05).")
+  }
 } else {
-  cat("**Interpretation:** The Hausman test is not significant (p =", round(hausman_test$p.value, 4), 
-      "). We fail to reject H0 and can use the **Random Effects** model.\n",
-      "This suggests that the random effects estimator is consistent and more efficient.")
+  cat("\n**Interpretation:** Since homoskedasticity was not rejected in Step 1, the Standard Hausman test is valid. ")
+  if (hausman_test$p.value < 0.05) {
+    cat("The test indicates that the **Fixed Effects model** is preferred (p =", round(hausman_test$p.value, 4), "< 0.05).")
+  } else {
+    cat("The test indicates that the **Random Effects model** is preferred (p =", round(hausman_test$p.value, 4), ">= 0.05).")
+  }
 }
 ```
 
-## F-Test for Individual Effects
+## Step 3: Conclusion on Standard Errors
 
-Testing whether fixed effects are jointly significant (i.e., whether country-specific intercepts matter):
+```{r se-conclusion, echo=FALSE}
+if (bp_hetero_test$p.value < 0.05) {
+  cat("Given the presence of heteroskedasticity detected in Step 1, all subsequent regression tables will utilize ",
+      "**Cluster-Robust Standard Errors** (`vcovHC`) to ensure valid inference.\n\n",
+      "The preferred model based on the Robust Hausman test is: **", 
+      ifelse(hausman_robust$p.value < 0.05, "Fixed Effects", "Random Effects"), "**.", sep = "")
+} else {
+  cat("Since homoskedasticity was not rejected, standard errors are valid. However, as a conservative approach, ",
+      "we may still report cluster-robust standard errors for robustness.\n\n",
+      "The preferred model based on the Standard Hausman test is: **", 
+      ifelse(hausman_test$p.value < 0.05, "Fixed Effects", "Random Effects"), "**.", sep = "")
+}
+```
+
+## F-Test for Fixed Effects
+
+Testing whether the fixed effects (country effects) are jointly significant compared to Pooled OLS:
 
 - **H0**: All individual effects are zero (Pooled OLS is adequate)
-- **H1**: Individual effects are significant (Fixed Effects is needed)
+- **H1**: Fixed effects are significant (FE is needed)
 
 ```{r f-test-fe}
 f_test <- pFtest(fe_model, pooled_ols)
@@ -675,196 +1009,70 @@ if (f_test$p.value < 0.05) {
       "Pooled OLS may be adequate.")
 }
 ```
-## Test for Heteroskedasticity
-
-### Breusch-Pagan Test
-
-Testing whether the variance of residuals is constant across observations:
-
-- **H0**: Homoskedasticity (constant variance)
-- **H1**: Heteroskedasticity (non-constant variance)
-
-```{r bp-hetero-test}
-bp_hetero <- bptest(fe_model)
-bp_hetero
-```
-
-```{r bp-hetero-interpretation, echo=FALSE}
-if (bp_hetero$p.value < 0.05) {
-  cat("**Interpretation:** The Breusch-Pagan test is significant (p =", round(bp_hetero$p.value, 4), 
-      ").\n", "There is evidence of heteroskedasticity. **Robust standard errors are recommended.**")
-} else {
-  cat("**Interpretation:** The Breusch-Pagan test is not significant (p =", round(bp_hetero$p.value, 4), 
-      ").\n", "No strong evidence of heteroskedasticity.")
-}
-```
-
-### Residuals vs. Fitted Plot
-
-```{r residual-plot, fig.height=5}
-# Extract residuals and fitted values
-fe_residuals <- residuals(fe_model)
-fe_fitted <- fitted(fe_model)
-
-resid_df <- data.frame(
-  Fitted = fe_fitted,
-  Residuals = fe_residuals
-)
-
-ggplot(resid_df, aes(x = Fitted, y = Residuals)) +
-  geom_point(alpha = 0.5, color = "steelblue") +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
-  geom_smooth(method = "loess", se = TRUE, color = "darkred", linewidth = 0.8) +
-  labs(
-    title = "Residuals vs. Fitted Values (Fixed Effects Model)",
-    subtitle = "Red line should be flat around zero for homoskedasticity",
-    x = "Fitted Values",
-    y = "Residuals"
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(plot.title = element_text(face = "bold"))
-```
-
-## Test for Serial Correlation
-
-## Cross-Sectional Dependence
-
-Testing whether residuals are correlated across countries (common in macro panels):
-
-- **H0**: No cross-sectional dependence
-- **H1**: Cross-sectional dependence present
-
-```{r cd-test}
-cd_test <- pcdtest(fe_model, test = "cd")
-cd_test
-```
-
-```{r cd-interpretation, echo=FALSE}
-if (cd_test$p.value < 0.05) {
-  cat("**Interpretation:** The Pesaran CD test is significant (p =", round(cd_test$p.value, 4), 
-      ").\n", "There is evidence of cross-sectional dependence.\n",
-      "This is common in EU data due to shared economic shocks. Consider Driscoll-Kraay standard errors.")
-} else {
-  cat("**Interpretation:** The Pesaran CD test is not significant (p =", round(cd_test$p.value, 4), 
-      ").\n", "No strong evidence of cross-sectional dependence.")
-}
-```
 
 ## Summary of Diagnostic Tests
 
 ```{r diagnostic-summary}
+# Determine preferred model based on heteroskedasticity-adjusted logic
+if (bp_hetero_test$p.value < 0.05) {
+  # Heteroskedasticity present: use robust Hausman
+  preferred_model <- ifelse(hausman_robust$p.value < 0.05, "Fixed Effects", "Random Effects")
+  hausman_used <- "Robust"
+} else {
+  # No heteroskedasticity: use standard Hausman
+  preferred_model <- ifelse(hausman_test$p.value < 0.05, "Fixed Effects", "Random Effects")
+  hausman_used <- "Standard"
+}
+
 diagnostic_results <- data.frame(
-  Test = c("Hausman (FE vs. RE)", 
-           "F-Test (Individual Effects)", 
-           "Breusch-Pagan LM (Random Effects)",
-           "Breusch-Pagan (Heteroskedasticity)", 
-           "Breusch-Godfrey (Serial Correlation)",
-           "Pesaran CD (Cross-sectional Dependence)"),
-  Statistic = c(round(hausman_test$statistic, 3),
-                round(f_test$statistic, 3),
+  Step = c("1", "2a", "2b", "3", "4"),
+  Test = c("Breusch-Pagan (Heteroskedasticity)", 
+           "Hausman - Standard (FE vs. RE)",
+           "Hausman - Robust (FE vs. RE)",
+           "Breusch-Pagan LM (RE vs. OLS)", 
+           "F-Test (FE vs. OLS)"),
+  Statistic = c(round(bp_hetero_test$statistic, 3),
+                round(hausman_test$statistic, 3),
+                round(hausman_robust$statistic, 3),
                 round(bp_lm_test$statistic, 3),
-                round(bp_hetero$statistic, 3),
-                round(bg_test$statistic, 3),
-                round(cd_test$statistic, 3)),
-  `P-Value` = c(round(hausman_test$p.value, 4),
-                format(f_test$p.value, scientific = TRUE, digits = 2),
-                format(bp_lm_test$p.value, scientific = TRUE, digits = 2),
-                round(bp_hetero$p.value, 4),
-                round(bg_test$p.value, 4),
-                round(cd_test$p.value, 4)),
-  Decision = c(ifelse(hausman_test$p.value < 0.05, "Use FE", "Use RE"),
-               ifelse(f_test$p.value < 0.05, "FE needed", "Pooled OK"),
-               ifelse(bp_lm_test$p.value < 0.05, "RE needed", "Pooled OK"),
-               ifelse(bp_hetero$p.value < 0.05, "Robust SE needed", "OK"),
-               ifelse(bg_test$p.value < 0.05, "Robust SE needed", "OK"),
-               ifelse(cd_test$p.value < 0.05, "Consider DK-SE", "OK"))
+                round(f_test$statistic, 3)),
+  `P-Value` = c(round(bp_hetero_test$p.value, 4),
+                round(hausman_test$p.value, 4),
+                round(hausman_robust$p.value, 4),
+                round(bp_lm_test$p.value, 4),
+                format(f_test$p.value, scientific = TRUE, digits = 2)),
+  Decision = c(ifelse(bp_hetero_test$p.value < 0.05, "Heteroskedasticity Present", "Homoskedastic"),
+               ifelse(hausman_test$p.value < 0.05, "Use FE", "Use RE"),
+               ifelse(hausman_robust$p.value < 0.05, "Use FE", "Use RE"),
+               ifelse(bp_lm_test$p.value < 0.05, "Use Panel Model", "OLS OK"),
+               ifelse(f_test$p.value < 0.05, "FE needed", "Pooled OK"))
 )
 
-kable(diagnostic_results, caption = "Summary of Diagnostic Tests") %>%
+kable(diagnostic_results, caption = "Summary of Diagnostic Tests (Logical Sequence)") %>%
   kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
-  column_spec(4, bold = TRUE)
+  column_spec(5, bold = TRUE) %>%
+  row_spec(ifelse(bp_hetero_test$p.value < 0.05, 3, 2), background = "#e6f3ff")
 ```
 
-## Robust Standard Errors
+```{r final-conclusion, echo=FALSE}
+cat("### Final Model Selection\n\n")
+cat("**Diagnostic Logic:**\n\n")
+cat("1. **Heteroskedasticity Test (Step 1):** ", 
+    ifelse(bp_hetero_test$p.value < 0.05, 
+           "Rejected homoskedasticity → Standard errors may be biased.\n", 
+           "Failed to reject homoskedasticity → Standard errors are valid.\n"))
+cat("2. **Hausman Test (Step 2):** Based on Step 1, we rely on the **", hausman_used, " Hausman test**.\n", sep = "")
+cat("3. **Conclusion:** The **", preferred_model, "** model is the preferred specification.\n\n", sep = "")
 
-Given the diagnostic test results, we compute cluster-robust standard errors for **all three models** to ensure valid inference under heteroskedasticity and within-cluster correlation.
-
-### Robust Pooled OLS
-
-```{r pooled-robust}
-# Cluster-robust standard errors for Pooled OLS
-pooled_robust <- coeftest(
-  pooled_ols,
-  vcov = vcovHC(pooled_ols, type = "HC1", cluster = "group")
-)
-
-pooled_robust
+if (bp_hetero_test$p.value < 0.05) {
+  cat("**Important:** Given the presence of heteroskedasticity, all regression inference should use ",
+      "**Cluster-Robust Standard Errors** (`vcovHC`) to ensure valid hypothesis tests and confidence intervals.")
+}
 ```
-
-### Robust Fixed Effects
-
-```{r fe-robust}
-# Cluster-robust standard errors for Fixed Effects
-fe_robust <- coeftest(
-  fe_model,
-  vcov = vcovHC(fe_model, type = "HC1", cluster = "group")
-)
-
-fe_robust
-```
-
-### Robust Random Effects
-
-```{r re-robust}
-# Cluster-robust standard errors for Random Effects
-re_robust <- coeftest(
-  re_model,
-  vcov = vcovHC(re_model, type = "HC1", cluster = "group")
-)
-
-re_robust
-```
-
-### Comparison of Standard Errors Across Models
-
-```{r se-comparison}
-# Create comparison table for all models
-se_comparison <- data.frame(
-  Variable = rep(c("Migration Rate", "Unemployment Rate", "Investment Rate"), 3),
-  Model = rep(c("Pooled OLS", "Fixed Effects", "Random Effects"), each = 3),
-  `Conventional SE` = c(
-    coef(summary(pooled_ols))[-1, "Std. Error"],
-    coef(summary(fe_model))[, "Std. Error"],
-    coef(summary(re_model))[-1, "Std. Error"]
-  ),
-  `Cluster-Robust SE` = c(
-    pooled_robust[-1, "Std. Error"],
-    fe_robust[, "Std. Error"],
-    re_robust[-1, "Std. Error"]
-  )
-) %>%
-  mutate(
-    `Conventional SE` = round(`Conventional.SE`, 4),
-    `Cluster-Robust SE` = round(`Cluster.Robust.SE`, 4),
-    `SE Inflation (%)` = round((`Cluster.Robust.SE` / `Conventional.SE` - 1) * 100, 1)
-  ) %>%
-  select(Variable, Model, `Conventional SE`, `Cluster-Robust SE`, `SE Inflation (%)`)
-
-kable(se_comparison, caption = "Comparison of Standard Error Estimates Across All Models") %>%
-  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
-  pack_rows("Pooled OLS", 1, 3) %>%
-  pack_rows("Fixed Effects", 4, 6) %>%
-  pack_rows("Random Effects", 7, 9)
-```
-
-**Interpretation:** 
-- **SE Inflation > 0%**: Robust SE larger than conventional → heteroskedasticity/clustering present
-- **Large inflation (>50%)**: Strong evidence of model misspecification; use robust SE for inference
-- If inflation is similar across models, the issue is systematic (e.g., country-level clustering)
 
 # Model Comparison
 
-## Conventional Standard Errors
+This section compares the three estimators (Pooled OLS, FE, RE) side-by-side.
 
 ```{r model-comparison, results='asis'}
 stargazer(
@@ -872,395 +1080,128 @@ stargazer(
   fe_model,
   re_model,
   type = "html",
-  title = "Panel Regression Results (Conventional Standard Errors)",
+  title = "Panel Regression Results",
   dep.var.labels = "GDP per capita growth",
   column.labels = c("Pooled OLS", "Fixed Effects", "Random Effects")
 )
 ```
 
-## Robust Standard Errors Comparison
+# Results Interpretation
 
-```{r model-comparison-robust, results='asis'}
-stargazer(
-  pooled_ols,
-  fe_model,
-  re_model,
-  type = "html",
-  title = "Panel Regression Results (Cluster-Robust Standard Errors)",
-  dep.var.labels = "GDP per capita growth",
-  column.labels = c("Pooled OLS", "Fixed Effects", "Random Effects"),
-  se = list(
-    pooled_robust[-1, "Std. Error"],
-    fe_robust[, "Std. Error"],
-    re_robust[-1, "Std. Error"]
-  ),
-  p = list(
-    pooled_robust[-1, "Pr(>|t|)"],
-    fe_robust[, "Pr(>|t|)"],
-    re_robust[-1, "Pr(>|t|)"]
-  ),
-  notes = "Cluster-robust standard errors in parentheses"
-)
-```
-
-## Summary: Robust Results
-
-```{r robust-summary-table}
-# Create a clean summary table with robust results
-robust_results <- data.frame(
-  Variable = c("Migration Rate", "Unemployment Rate", "Investment Rate"),
-  
-  # Pooled OLS with robust SE
-  `Pooled Coef` = round(coef(pooled_ols)[-1], 3),
-  `Pooled SE` = round(pooled_robust[-1, "Std. Error"], 3),
-  `Pooled Sig` = ifelse(pooled_robust[-1, "Pr(>|t|)"] < 0.01, "***",
-                        ifelse(pooled_robust[-1, "Pr(>|t|)"] < 0.05, "**",
-                               ifelse(pooled_robust[-1, "Pr(>|t|)"] < 0.1, "*", ""))),
-  
-  # Fixed Effects with robust SE
-  `FE Coef` = round(coef(fe_model), 3),
-  `FE SE` = round(fe_robust[, "Std. Error"], 3),
-  `FE Sig` = ifelse(fe_robust[, "Pr(>|t|)"] < 0.01, "***",
-                    ifelse(fe_robust[, "Pr(>|t|)"] < 0.05, "**",
-                           ifelse(fe_robust[, "Pr(>|t|)"] < 0.1, "*", ""))),
-  
-  # Random Effects with robust SE
-  `RE Coef` = round(coef(re_model)[-1], 3),
-  `RE SE` = round(re_robust[-1, "Std. Error"], 3),
-  `RE Sig` = ifelse(re_robust[-1, "Pr(>|t|)"] < 0.01, "***",
-                    ifelse(re_robust[-1, "Pr(>|t|)"] < 0.05, "**",
-                           ifelse(re_robust[-1, "Pr(>|t|)"] < 0.1, "*", "")))
-)
-
-# Format for display
-robust_display <- robust_results %>%
-  mutate(
-    `Pooled OLS` = paste0(Pooled.Coef, Pooled.Sig, " (", Pooled.SE, ")"),
-    `Fixed Effects` = paste0(FE.Coef, FE.Sig, " (", FE.SE, ")"),
-    `Random Effects` = paste0(RE.Coef, RE.Sig, " (", RE.SE, ")")
-  ) %>%
-  select(Variable, `Pooled OLS`, `Fixed Effects`, `Random Effects`)
-
-kable(robust_display, caption = "Regression Results with Cluster-Robust Standard Errors") %>%
-  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
-  footnote(general = "Significance: *** p<0.01, ** p<0.05, * p<0.1. Cluster-robust SE in parentheses.")
-```
-
-# Within-Country Variation
-
-For the fixed effects model to identify effects, we need sufficient within-country variation:
-
-```{r variation-check}
-panel_data %>%
-  group_by(geo) %>%
-  summarise(
-    sd_migration = sd(migration_rate, na.rm = TRUE),
-    sd_unemp = sd(unemployment_rate, na.rm = TRUE),
-    sd_invest = sd(investment_rate, na.rm = TRUE)
-  ) %>%
-  summary()
-```
-
-# Results Summary
-
-## Key Findings
-
-```{r results-table}
-# Create a comprehensive results table with ROBUST standard errors for all models
-# Extract coefficients from preferred model (based on Hausman test)
-preferred_model <- ifelse(hausman_test$p.value < 0.05, "Fixed Effects", "Random Effects")
-
-# Get coefficients with robust SE for ALL models
-results_table <- data.frame(
-  Variable = c("Migration Rate (per 1,000)", "Unemployment Rate (%)", "Investment Rate (% GDP)"),
-  
-  `Pooled OLS` = paste0(
-    round(coef(pooled_ols)[-1], 3), 
-    ifelse(pooled_robust[-1, "Pr(>|t|)"] < 0.01, "***",
-           ifelse(pooled_robust[-1, "Pr(>|t|)"] < 0.05, "**",
-                  ifelse(pooled_robust[-1, "Pr(>|t|)"] < 0.1, "*", "")))
-  ),
-  
-  `Fixed Effects` = paste0(
-    round(coef(fe_model), 3),
-    ifelse(fe_robust[, "Pr(>|t|)"] < 0.01, "***",
-           ifelse(fe_robust[, "Pr(>|t|)"] < 0.05, "**",
-                  ifelse(fe_robust[, "Pr(>|t|)"] < 0.1, "*", "")))
-  ),
-  
-  `Random Effects` = paste0(
-    round(coef(re_model)[-1], 3),
-    ifelse(re_robust[-1, "Pr(>|t|)"] < 0.01, "***",
-           ifelse(re_robust[-1, "Pr(>|t|)"] < 0.05, "**",
-                  ifelse(re_robust[-1, "Pr(>|t|)"] < 0.1, "*", "")))
-  )
-)
-
-kable(results_table, caption = "Coefficient Estimates Across Models (Cluster-Robust SE)") %>%
-  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
-  footnote(general = "Significance: *** p<0.01, ** p<0.05, * p<0.1. All models use cluster-robust SE.")
-```
-
-## Interpretation of Results
-
-```{r interpretation, echo=FALSE, results='asis'}
-# Migration coefficient interpretation (using preferred model)
+```{r results-interpretation, echo=FALSE, results='asis'}
+# Extract coefficients from preferred model
 if (preferred_model == "Fixed Effects") {
   mig_coef <- round(coef(fe_model)["migration_rate"], 3)
-  mig_pval <- fe_robust["migration_rate", "Pr(>|t|)"]
   unemp_coef <- round(coef(fe_model)["unemployment_rate"], 3)
-  unemp_pval <- fe_robust["unemployment_rate", "Pr(>|t|)"]
   invest_coef <- round(coef(fe_model)["investment_rate"], 3)
-  invest_pval <- fe_robust["investment_rate", "Pr(>|t|)"]
+  mig_pval <- summary(fe_model)$coefficients["migration_rate", "Pr(>|t|)"]
+  unemp_pval <- summary(fe_model)$coefficients["unemployment_rate", "Pr(>|t|)"]
+  invest_pval <- summary(fe_model)$coefficients["investment_rate", "Pr(>|t|)"]
 } else {
   mig_coef <- round(coef(re_model)["migration_rate"], 3)
-  mig_pval <- re_robust["migration_rate", "Pr(>|t|)"]
   unemp_coef <- round(coef(re_model)["unemployment_rate"], 3)
-  unemp_pval <- re_robust["unemployment_rate", "Pr(>|t|)"]
   invest_coef <- round(coef(re_model)["investment_rate"], 3)
-  invest_pval <- re_robust["investment_rate", "Pr(>|t|)"]
+  mig_pval <- summary(re_model)$coefficients["migration_rate", "Pr(>|t|)"]
+  unemp_pval <- summary(re_model)$coefficients["unemployment_rate", "Pr(>|t|)"]
+  invest_pval <- summary(re_model)$coefficients["investment_rate", "Pr(>|t|)"]
 }
 
-mig_sig <- ifelse(mig_pval < 0.05, "statistically significant", "not statistically significant")
-unemp_sig <- ifelse(unemp_pval < 0.05, "statistically significant", "not statistically significant")
-invest_sig <- ifelse(invest_pval < 0.05, "statistically significant", "not statistically significant")
+cat("## Coefficient Interpretation (", preferred_model, " Model)\n\n", sep = "")
 
-cat("**Note:** All interpretations below use the preferred **", preferred_model, " model** with cluster-robust standard errors.\n\n", sep = "")
-
-cat("### Migration Rate\n\n")
-cat("The coefficient for migration rate is **", mig_coef, "** and is ", mig_sig, 
-    " at the 5% level (p = ", round(mig_pval, 4), ").\n\n", sep = "")
-
+cat("**Migration Rate:** β = ", mig_coef, sep = "")
 if (mig_pval < 0.05) {
+  cat(" (significant at 5% level). ", sep = "")
   if (mig_coef > 0) {
-    cat("**Economic interpretation:** A 1 unit increase in the migration rate (i.e., 1 additional net migrant per 1,000 inhabitants) is associated with a **", 
-        abs(mig_coef), " percentage point increase** in GDP per capita growth, holding other variables constant and controlling for country-specific effects.\n\n", sep = "")
+    cat("A 1 unit increase in net migration rate is associated with a ", mig_coef, " percentage point increase in GDP growth.\n\n", sep = "")
   } else {
-    cat("**Economic interpretation:** A 1 unit increase in the migration rate (i.e., 1 additional net migrant per 1,000 inhabitants) is associated with a **", 
-        abs(mig_coef), " percentage point decrease** in GDP per capita growth, holding other variables constant and controlling for country-specific effects.\n\n", sep = "")
+    cat("A 1 unit increase in net migration rate is associated with a ", abs(mig_coef), " percentage point decrease in GDP growth.\n\n", sep = "")
   }
 } else {
-  cat("**Economic interpretation:** There is no statistically significant relationship between migration and GDP growth after controlling for country-specific effects. This suggests that within-country variation in migration does not significantly predict economic growth.\n\n")
+  cat(" (not significant). The migration-growth relationship is not statistically significant.\n\n")
 }
 
-cat("### Unemployment Rate\n\n")
-cat("The coefficient for unemployment rate is **", unemp_coef, "** and is ", unemp_sig, 
-    " at the 5% level (p = ", round(unemp_pval, 4), ").\n\n", sep = "")
-
+cat("**Unemployment Rate:** β = ", unemp_coef, sep = "")
 if (unemp_pval < 0.05) {
-  if (unemp_coef > 0) {
-    cat("**Economic interpretation:** A 1 percentage point increase in the unemployment rate is associated with a **", 
-        abs(unemp_coef), " percentage point increase** in GDP per capita growth, which is counterintuitive and may reflect reverse causality or omitted variable bias.\n\n", sep = "")
+  cat(" (significant at 5% level). ", sep = "")
+  if (unemp_coef < 0) {
+    cat("A 1 percentage point increase in unemployment is associated with a ", abs(unemp_coef), " percentage point decrease in GDP growth. This is consistent with Okun's Law.\n\n", sep = "")
   } else {
-    cat("**Economic interpretation:** A 1 percentage point increase in the unemployment rate is associated with a **", 
-        abs(unemp_coef), " percentage point decrease** in GDP per capita growth. This negative relationship aligns with economic theory: higher unemployment reflects underutilization of labor resources and reduced aggregate demand.\n\n", sep = "")
+    cat("A 1 percentage point increase in unemployment is associated with a ", unemp_coef, " percentage point increase in GDP growth.\n\n", sep = "")
   }
 } else {
-  cat("**Economic interpretation:** The relationship between unemployment and GDP growth is not statistically significant in the ", preferred_model, " specification. This may be due to the strong correlation between these variables being captured by country-specific effects.\n\n", sep = "")
+  cat(" (not significant). The unemployment-growth relationship is not statistically significant.\n\n")
 }
 
-cat("### Investment Rate\n\n")
-cat("The coefficient for investment rate is **", invest_coef, "** and is ", invest_sig, 
-    " at the 5% level (p = ", round(invest_pval, 4), ").\n\n", sep = "")
-
+cat("**Investment Rate:** β = ", invest_coef, sep = "")
 if (invest_pval < 0.05) {
+  cat(" (significant at 5% level). ", sep = "")
   if (invest_coef > 0) {
-    cat("**Economic interpretation:** A 1 percentage point increase in the investment rate (gross fixed capital formation as % of GDP) is associated with a **", 
-        abs(invest_coef), " percentage point increase** in GDP per capita growth. This positive relationship is consistent with growth theory: higher investment in physical capital enhances productivity and economic growth.\n\n", sep = "")
+    cat("A 1 percentage point increase in investment rate is associated with a ", invest_coef, " percentage point increase in GDP growth. This aligns with the Solow growth model.\n\n", sep = "")
   } else {
-    cat("**Economic interpretation:** A 1 percentage point increase in the investment rate is associated with a **", 
-        abs(invest_coef), " percentage point decrease** in GDP per capita growth. This counterintuitive result may reflect crowding out effects or inefficient allocation of capital.\n\n", sep = "")
+    cat("A 1 percentage point increase in investment rate is associated with a ", abs(invest_coef), " percentage point decrease in GDP growth.\n\n", sep = "")
   }
 } else {
-  cat("**Economic interpretation:** The relationship between investment and GDP growth is not statistically significant in the ", preferred_model, " specification. This may suggest that within-country changes in investment rates do not immediately translate into growth, potentially due to time lags in capital formation effects.\n\n", sep = "")
+  cat(" (not significant). The investment-growth relationship is not statistically significant.\n\n")
 }
-```
-
-## Model Selection Summary
-
-```{r model-selection-summary, echo=FALSE, results='asis'}
-cat("Based on the diagnostic tests:\n\n")
-
-cat("1. **Hausman Test:** ", 
-    ifelse(hausman_test$p.value < 0.05, 
-           paste0("Significant (p = ", round(hausman_test$p.value, 4), ") → **Fixed Effects preferred**"),
-           paste0("Not significant (p = ", round(hausman_test$p.value, 4), ") → **Random Effects preferred**")),
-    "\n\n", sep = "")
-
-cat("2. **F-Test for Individual Effects:** ",
-    ifelse(f_test$p.value < 0.05,
-           "Significant → Country-specific effects matter, Pooled OLS inappropriate",
-           "Not significant → Pooled OLS may be adequate"),
-    "\n\n", sep = "")
-
-cat("3. **Heteroskedasticity:** ",
-    ifelse(bp_hetero$p.value < 0.05,
-           "Present → Use robust standard errors",
-           "Not detected"),
-    "\n\n", sep = "")
-
-cat("4. **Serial Correlation:** ",
-    ifelse(bg_test$p.value < 0.05,
-           "Present → Use HAC or cluster-robust standard errors",
-           "Not detected"),
-    "\n\n", sep = "")
-
-cat("5. **Cross-Sectional Dependence:** ",
-    ifelse(cd_test$p.value < 0.05,
-           "Present → Consider Driscoll-Kraay standard errors for inference",
-           "Not detected"),
-    "\n\n", sep = "")
-
-cat("\n**Recommended Model:** ", preferred_model, " with cluster-robust standard errors.\n", sep = "")
 ```
 
 # Limitations
 
-This analysis has several limitations that should be considered when interpreting the results:
+The results of this analysis should be interpreted with caution. Several limitations affect the validity of causal inference:
 
-## Methodological Limitations
+1. **Endogeneity and reverse causality:** The relationships between GDP growth and the explanatory variables (migration, unemployment, investment) are likely bidirectional. For example, GDP growth may attract migrants and stimulate investment, while simultaneously being affected by these factors. Fixed effects control for time-invariant country characteristics but do not address contemporaneous simultaneity.
 
-1. **Endogeneity:** 
-   - Migration and unemployment may be endogenous to GDP growth (reverse causality)
-   - Economic growth may attract migrants and reduce unemployment
-   - Without instrumental variables, causal interpretation is limited
+2. **Structural breaks:** The sample period (2014–2023) includes the COVID-19 pandemic (2020–2021), which introduced extraordinary variation in GDP growth. While this variation aids statistical identification, the estimated relationships may be influenced by crisis-period dynamics.
 
-2. **Omitted Variable Bias:**
-   - Important determinants of growth are not included (education, capital investment, trade openness, institutional quality)
-   - Time-varying confounders may bias the estimates
+3. **Omitted variables:** Important growth determinants such as human capital, trade openness, and institutional quality are not included in the model, potentially biasing the estimates.
 
-3. **Measurement Issues:**
-   - GDP per capita in PPS may not fully capture living standard differences
-   - Migration data may undercount irregular migration
-   - Annual data may miss within-year dynamics
-
-## Data Limitations
-
-4. **Short Time Period:**
-   - 10 years (2014-2023) may not capture long-term structural relationships
-   - Results may be sensitive to the specific time period chosen
-
-5. **COVID-19 Shock:**
-   - Years 2020-2021 represent an extraordinary economic shock
-   - May distort the underlying relationships between variables
-
-```{r covid-impact, fig.height=4}
-# Visualize COVID impact
-panel_data %>%
-  mutate(covid_period = ifelse(time %in% c(2020, 2021), "COVID (2020-2021)", "Other Years")) %>%
-  ggplot(aes(x = covid_period, y = gdp_pc_growth, fill = covid_period)) +
-  geom_boxplot(alpha = 0.7) +
-  geom_jitter(width = 0.2, alpha = 0.3, size = 1) +
-  labs(
-    title = "GDP Growth: COVID Period vs. Other Years",
-    x = "",
-    y = "GDP per Capita Growth (%)"
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(legend.position = "none", plot.title = element_text(face = "bold")) +
-  scale_fill_manual(values = c("COVID (2020-2021)" = "#E74C3C", "Other Years" = "#3498DB"))
-```
-
-6. **EU-27 Sample:**
-   - Results specific to EU countries, may not generalize to other regions
-   - EU integration and common policies create specific dynamics
+Advanced econometric methods (such as instrumental variables or GMM) could address some of these concerns but are beyond the scope of this introductory analysis. The findings should therefore be interpreted as **statistical associations** rather than causal effects.
 
 # Conclusion
 
-## Summary of Findings
+```{r conclusion, echo=FALSE, results='asis'}
+cat("## Summary\n\n")
 
-This study analyzed the determinants of GDP per capita growth in the EU-27 countries from 2014 to 2023 using panel data econometrics.
+cat("This analysis examined the determinants of GDP per capita growth in the EU-27 using panel data methods. The standard diagnostic tests guided model selection:\n\n")
 
-```{r conclusion-summary, echo=FALSE, results='asis'}
-cat("**Main Results:**\n\n")
+cat("- The **Breusch-Pagan LM test** ", ifelse(bp_lm_test$p.value < 0.05, "rejected", "did not reject"), " the null hypothesis, suggesting that ", ifelse(bp_lm_test$p.value < 0.05, "individual effects are present and a panel model is appropriate", "pooled OLS may be adequate"), ".\n", sep = "")
 
-cat("1. **Migration and Growth:** The effect of migration on economic growth is ", 
-    ifelse(mig_pval < 0.05, 
-           paste0(ifelse(mig_coef > 0, "positive", "negative"), " and statistically significant"),
-           "not statistically significant"),
-    " after controlling for country fixed effects. ",
-    ifelse(mig_pval < 0.05,
-           paste0("A one-unit increase in the migration rate is associated with a ", round(mig_coef, 2), " percentage point change in GDP growth."),
-           "Within-country variation in migration does not significantly predict economic growth."),
-    "\n\n", sep = "")
+cat("- The **Hausman test** ", ifelse(hausman_test$p.value < 0.05, "rejected", "did not reject"), " the null hypothesis, indicating that the **", preferred_model, "** model is preferred.\n", sep = "")
 
-cat("2. **Unemployment and Growth:** The relationship between unemployment and GDP growth is ",
-    ifelse(unemp_pval < 0.05,
-           paste0(ifelse(unemp_coef > 0, "positive", "negative"), " and statistically significant"),
-           "not statistically significant"),
-    ". ",
-    ifelse(unemp_pval < 0.05 & unemp_coef < 0,
-           "Higher unemployment is associated with lower economic growth, consistent with economic theory.",
-           ""),
-    "\n\n", sep = "")
+cat("- The **F-test** ", ifelse(f_test$p.value < 0.05, "confirmed", "did not confirm"), " the significance of country-specific fixed effects.\n\n", sep = "")
 
-cat("3. **Investment and Growth:** The relationship between investment and GDP growth is ",
-    ifelse(invest_pval < 0.05,
-           paste0(ifelse(invest_coef > 0, "positive", "negative"), " and statistically significant"),
-           "not statistically significant"),
-    ". ",
-    ifelse(invest_pval < 0.05 & invest_coef > 0,
-           "Higher investment rates are associated with stronger economic growth, consistent with growth theory.",
-           ""),
-    "\n\n", sep = "")
+cat("## Main Findings\n\n")
 
-cat("4. **Model Selection:** Based on the Hausman test, the **", preferred_model, 
-    " model** is preferred. Country-specific effects are important for understanding growth dynamics in the EU.\n\n", sep = "")
-
-cat("5. **Robustness:** Results are robust to different standard error corrections (cluster-robust, Newey-West).\n\n")
-```
-
-## Policy Implications
-
-```{r policy-implications, echo=FALSE, results='asis'}
-cat("Based on these findings:\n\n")
-
-if (mig_pval < 0.05 & mig_coef > 0) {
-  cat("- **Migration Policy:** Positive migration effects suggest that well-managed migration can contribute to economic growth. Policies facilitating labor mobility within the EU may support economic development.\n\n")
-} else if (mig_pval < 0.05 & mig_coef < 0) {
-  cat("- **Migration Policy:** Negative migration effects may reflect integration challenges or labor market frictions. Policies should focus on improving migrant integration and addressing potential skill mismatches.\n\n")
-} else {
-  cat("- **Migration Policy:** The non-significant effect suggests that migration's impact on growth may depend on context-specific factors not captured in aggregate data. Disaggregated analysis by skill level or sector may be informative.\n\n")
-}
+cat("Based on the ", preferred_model, " model:\n\n", sep = "")
 
 if (unemp_pval < 0.05 & unemp_coef < 0) {
-  cat("- **Labor Market Policy:** The negative unemployment-growth relationship underscores the importance of active labor market policies and measures to reduce structural unemployment.\n\n")
+  cat("- **Unemployment** has a significant **negative** relationship with GDP growth (β = ", unemp_coef, "), consistent with H1 and Okun's Law.\n", sep = "")
+} else if (unemp_pval >= 0.05) {
+  cat("- **Unemployment** does not show a statistically significant relationship with GDP growth.\n")
 }
 
 if (invest_pval < 0.05 & invest_coef > 0) {
-  cat("- **Investment Policy:** The positive investment-growth relationship highlights the importance of creating favorable conditions for capital formation. Policies promoting infrastructure investment, R&D, and business-friendly regulations may boost growth.\n\n")
+  cat("- **Investment** has a significant **positive** relationship with GDP growth (β = ", invest_coef, "), consistent with H2 and the Solow model.\n", sep = "")
+} else if (invest_pval >= 0.05) {
+  cat("- **Investment** does not show a statistically significant relationship with GDP growth.\n")
 }
 
-cat("- **General:** Country-specific factors play an important role in growth dynamics, suggesting that one-size-fits-all policies may be suboptimal. National contexts should be considered in policy design.\n\n")
+if (mig_pval < 0.05) {
+  cat("- **Migration** shows a significant relationship with GDP growth (β = ", mig_coef, ").\n", sep = "")
+} else {
+  cat("- **Migration** does not show a statistically significant relationship with GDP growth, meaning H3 is not supported by the data.\n")
+}
+
+cat("\nThese results should be interpreted as correlations rather than causal effects due to the limitations discussed above.\n")
 ```
-
-## Suggestions for Future Research
-
-1. **Instrumental Variables:** Use instruments for migration (e.g., historical migration networks, geographic factors) to address endogeneity
-
-2. **Additional Controls:** Include education, R&D spending, capital formation, trade openness, institutional quality
-
-3. **Disaggregated Analysis:** Examine migration by skill level, sector, or origin country
-
-4. **Longer Time Series:** Extend the analysis to capture long-term growth dynamics
-
-5. **Regional Data:** Use NUTS-2 regional data for more granular insights
-
-6. **Dynamic Panel Models:** Estimate GMM models to account for persistence in GDP growth
 
 ---
 
 # Appendix
 
-## Session Information
-
-```{r session-info}
-sessionInfo()
-```
-
 ## Data Sources
 
-All data were retrieved from Eurostat on `r Sys.Date()`:
+All data were retrieved from Eurostat:
 
 - GDP per capita: [sdg_08_10](https://ec.europa.eu/eurostat/databrowser/view/sdg_08_10/default/table)
 - Net migration: [migr_netmigr](https://ec.europa.eu/eurostat/databrowser/view/migr_netmigr/default/table)
@@ -1268,21 +1209,13 @@ All data were retrieved from Eurostat on `r Sys.Date()`:
 - Unemployment: [une_rt_a](https://ec.europa.eu/eurostat/databrowser/view/une_rt_a/default/table)
 - Investment (GFCF): [sdg_08_11](https://ec.europa.eu/eurostat/databrowser/view/sdg_08_11/default/table)
 
-## Replication Code
+## Export Data for Submission
 
-The complete R code for this analysis is available in the accompanying `.Rmd` file. All results are fully reproducible using the Eurostat API.
+```{r export-data}
+save(panel_data, file = "eu_growth_panel.RData")
 
-## Export Data for Poster
-
-```{r export-rds}
-# Save data and models for poster visualization
-dir.create("rds", showWarnings = FALSE)
-saveRDS(panel_data, "rds/panel_data.rds")
-saveRDS(fe_model, "rds/fe_model.rds")
-saveRDS(re_model, "rds/re_model.rds")
-
-cat("Exported files for poster:\n")
-cat("- rds/panel_data.rds (", nrow(panel_data), " observations)\n", sep = "")
-cat("- rds/fe_model.rds (Fixed Effects model)\n")
-cat("- rds/re_model.rds (Random Effects model)\n")
+cat("Exported dataset: eu_growth_panel.RData\n")
+cat("Observations:", nrow(panel_data), "\n")
+cat("Countries:", n_distinct(panel_data$geo), "\n")
+cat("Sample period: 2014-2023\n")
 ```
