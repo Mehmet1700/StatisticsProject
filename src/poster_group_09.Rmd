@@ -1,0 +1,146 @@
+---
+output: html_document
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(tidyverse); library(plm); library(stargazer); library(ggplot2); library(kableExtra)
+load("data_group_09.RData")
+```
+
+<link rel="stylesheet" href="poster_group_09.css">
+
+<div class="poster">
+
+<!-- HEADER -->
+<div class="header">
+<div class="header-logo">
+<img src="../images/NOVAIMS_Logo.png" alt="NOVA IMS Logo">
+</div>
+<div class="header-content">
+<h1 class="header-title">Determinants of GDP per Capita Growth in the EU</h1>
+<p class="header-authors">Mehmet Karaca (20250344) &bull;Alexandre Manuel Rodrigues Batista (20250419) &bull; Muhammad Ammar (20250440) &bull; Khuzaima Bashir (20250441)</p>
+<p class="header-institution">NOVA Information Management School (NOVA IMS)</p>
+</div>
+<div class="header-logo">
+<img src="../images/EU_logo.png" alt="EU Logo">
+</div>
+</div>
+
+<!-- Poster Body (Newspaper-style multi-column) -->
+<div class="poster-body">
+
+<!-- Introduction -->
+<div class="section">
+<h2 class="section-title"><span class="icon">📊</span>Introduction</h2>
+<p>Understanding the interactions among key macroeconomic indicators remains a central focus of economic theory and empirical research. In particular, the relationships between GDP growth, unemployment, migration, and the investment share of GDP are of considerable interest because of their implications for labor market outcomes and economic policymaking.</p>
+<p>Economic theory predicts that higher GDP growth is associated with increased employment and lower unemployment rates [4]. However, empirical evidence on this relationship is mixed and context-dependent. Macroeconometric studies using European Union data often find only a weak and statistically insignificant negative association between economic growth and unemployment, whereas analyses of Asian economies typically report a stronger, statistically significant negative relationship [2,3].</p>
+<p>Furthermore, panel data studies for European countries suggest that increased immigration is often associated with higher economic growth in host regions, typically without systematic or statistically significant increases in unemployment [1]. On the other hand, higher levels of physical investment are consistently linked to faster long-run GDP growth through capital accumulation and productivity gains [10].</p>
+<p>Taken together, these findings highlight the context-dependent nature of the GDP–unemployment relationship and underscore the critical role of institutional, structural, and regional differences in shaping these dynamics.</p>
+</div>
+
+<!-- Research Question -->
+<div class="section highlight">
+<h2 class="section-title"><span class="icon">❓</span>Research Question</h2>
+<p><em>How do migration, unemployment, and investment affect GDP per capita growth in the EU?</em></p>
+</div>
+
+<!-- Data -->
+<div class="section">
+<h2 class="section-title"><span class="icon">📁</span>Data</h2>
+<p><strong>Source:</strong> Eurostat Database (2014-2023)</p>
+<table>
+<tr><th>Variable</th><th>Description</th><th>Unit</th></tr>
+<tr><td>GDP Growth</td><td>Real GDP per capita (log diff.)</td><td>%</td></tr>
+<tr><td>Migration</td><td>Net migration rate</td><td>‰</td></tr>
+<tr><td>Unemployment</td><td>Unemployment rate (15-74 yrs)</td><td>%</td></tr>
+<tr><td>Investment</td><td>Gross fixed capital formation</td><td>% GDP</td></tr>
+</table>
+</div>
+
+<!-- Methodology -->
+<div class="section">
+<h2 class="section-title"><span class="icon">🔬</span>Methodology</h2>
+<p>We constructed an unbalanced panel dataset of 27 EU member states over the period 2014–2023, comprising 269 annual observations. The data, obtained from Eurostat, includes key macroeconomic indicators: GDP per capita, net migration, unemployment rate, and investment rate [5–9]. These variables capture the primary economic and demographic drivers relevant to our analysis. </p>
+<p>To identify the optimal specification, we estimated Pooled OLS, Fixed Effects, and Random Effects models. Standard diagnostic tests, including the Hausman test, were used to control for unobserved country-specific heterogeneity and ensure robust results.</p>
+</div>
+
+<!-- Results -->
+<div class="section results">
+<h2 class="section-title"><span class="icon">📈</span>Results</h2>
+
+<h3 style="font-size:10pt; margin:4px 0 3px 0; color:#1a365d;">Diagnostic Tests</h3>
+```{r results="asis"}
+kable(diagnostic_table, col.names = c("Step", "Test", "Statistic", "P-Value", "Decision"), align = 'clccc') %>% kable_styling(bootstrap_options = 'condensed', full_width = TRUE, font_size = 10)
+```
+<p style="font-size:10pt; margin-top:3px;"><strong>Interpretation:</strong> Step 1 finds no heteroskedasticity (p = 0.637). Step 2a/2b (Standard & Robust Hausman) both confirm Fixed Effects is strongly preferred over Random Effects (p < 0.001). Step 3 shows weak evidence for panel effects over Pooled OLS (p = 0.218), but Step 4 (F-test) strongly supports Fixed Effects over Pooled OLS (p < 0.001). <strong>Conclusion:</strong> Fixed Effects model is the appropriate specification.</p>
+
+<h3 style="font-size:10pt; margin:6px 0 3px 0; color:#1a365d;">Model Performance</h3>
+```{r results="asis"}
+kable(model_performance, col.names = c("Model", "R²", "Adj. R²", "N"), align = 'lccc') %>% kable_styling(bootstrap_options = 'condensed', full_width = TRUE, font_size = 10) %>% row_spec(2, background = '#e6f3ff')
+```
+<p style="font-size:10pt; margin-top:3px;"><strong>Interpretation:</strong> All three models show relatively low R² values, suggesting that migration, unemployment, and investment explain only a small portion of GDP growth variation. The Fixed Effects model (R² = 0.016) performs similarly to other specifications, indicating that most growth variation comes from factors not included in this model.</p>
+
+<h3 style="font-size:10pt; margin:6px 0 3px 0; color:#1a365d;">Coefficient Estimates (Fixed Effects)</h3>
+<div class="plot-container">
+```{r fig.width=4, fig.height=2.2, fig.align="center"}
+coef_plot + theme(plot.margin = margin(2,2,2,2))
+```
+</div>
+<p style="font-size:10pt; margin-top:6px;">The Fixed Effects specification demonstrated the strongest model fit, effectively controlling for unobserved country-specific heterogeneity. The estimates for investment and unemployment remain statistically significant and robust, explaining a substantial portion of the within-country variance in growth rates.</p>
+</div>
+
+<!-- Conclusion -->
+<div class="section conclusion">
+<h2 class="section-title"><span class="icon">💡</span>Conclusion</h2>
+<p>Our analysis of the EU-27 member states (2014–2023) identifies unemployment reduction and capital investment as the primary drivers of economic prosperity, confirming standard growth theory within a highly volatile decade.</p>
+<div class="key-finding">
+<span class="finding-icon">📉</span>
+<div class="finding-text"><strong>Labor Markets are Decisive:</strong> We find a robust negative relationship between unemployment rates and GDP per capita growth. Structural reforms that improve labor market flexibility are essential for sustaining long-term growth.</div>
+</div>
+<div class="key-finding">
+<span class="finding-icon">🏗️</span>
+<div class="finding-text"><strong>Investment as a Growth Engine:</strong> Higher investment rates correlate positively with economic output, suggesting that policies fostering capital accumulation are effective buffers against stagnation.</div>
+</div>
+<div class="key-finding">
+<span class="finding-icon">🌍</span>
+<div class="finding-text"><strong>The Role of Migration:</strong> While migration theoretically expands the labor supply, its immediate impact on per capita growth is modest and dependent on successful labor market integration.</div>
+</div>
+<div class="key-finding">
+<span class="finding-icon">⚡</span>
+<div class="finding-text"><strong>Resilience to Shocks:</strong> The dataset highlights the massive structural break caused by COVID-19 (2020) and the subsequent 'bounce-back' (2021). Future EU policy must focus on resilience mechanisms to withstand such exogenous shocks without derailing long-term convergence.</div>
+</div>
+</div>
+
+<!-- Limitations -->
+<div class="section">
+<h2 class="section-title"><span class="icon">⚠️</span>Limitations</h2>
+<p>These findings represent statistical associations, not causal effects. The model faces potential endogeneity (reverse causality) and omitted variable bias (excluding human capital or trade). Consequently, the model exhibits low explanatory power ($R^2$), indicating that the selected variables are insufficient to capture the main drivers of GDP growth. Additionally, the COVID-19 pandemic creates structural breaks that standard Fixed Effects cannot fully mitigate. Addressing these issues requires advanced estimators like GMM.</p>
+</div>
+
+<!-- Next Steps -->
+<div class="section next-steps">
+<h2 class="section-title"><span class="icon">🚀</span>Next Steps</h2>
+<p>Future research should prioritize System GMM modeling to address endogeneity and incorporate education metrics to capture skill-specific migration effects. Additionally, analyzing Eurozone versus non-Eurozone subsamples would reveal if growth drivers vary by integration level.</p>
+</div>
+
+<!-- References -->
+<div class="section references-section">
+<h2 class="section-title"><span class="icon">📚</span>References</h2>
+<div class="references">
+<p>[1] M. Dritsaki and C. Dritsaki, 'Immigration, Growth and Unemployment: Panel VAR Evidence From Ε.U. Countries,' <em>J Knowl Econ</em>, vol. 15, no. 4, pp. 19928–19963, Apr. 2024, doi: 10.1007/s13132-024-01909-w.</p>
+<p>[2] A. Živković, 'UNEMPLOYMENT RATE AND GDP GROWTH RATE IN SELECTED EUROPEAN COUNTRIES,' <em>Balkans Journal of Emerging Trends in Social Sciences Balkans JETSS</em>, vol. 5, no. 2, pp. 81–92, 2022.</p>
+<p>[3] S. Chen, 'Dynamics of GDP growth and unemployment: Evidence from developed and developing Asian countries,' <em>Journal of Business and Economic Options</em>, vol. 5, no. 3, pp. 26–33, 2022.</p>
+<p>[4] F. M. Kreishan, 'Economic growth and unemployment: An empirical analysis,' <em>Journal of social sciences</em>, vol. 7, no. 2, pp. 228–231, 2011.</p>
+<p>[5] '[migr_netmigr] Net migration by age and sex.' Accessed: Jan. 25, 2026. [Online]. Available: https://ec.europa.eu/eurostat/databrowser/view/migr_netmigr/default/table</p>
+<p>[6] '[sdg_08_10] Real GDP per capita.' Accessed: Jan. 25, 2026. [Online]. Available: https://ec.europa.eu/eurostat/databrowser/view/sdg_08_10/default/table</p>
+<p>[7] '[sdg_08_11] Investment share of GDP by institutional sectors.' Accessed: Jan. 25, 2026. [Online]. Available: https://ec.europa.eu/eurostat/databrowser/view/sdg_08_11/default/table</p>
+<p>[8] '[une_rt_a] Unemployment by sex and age - annual data.' Accessed: Jan. 25, 2026. [Online]. Available: https://ec.europa.eu/eurostat/databrowser/view/une_rt_a/default/table</p>
+<p>[9] '[demo_gind] Population change - Demographic balance and crude rates at national level.' Accessed: Jan. 25, 2026. [Online]. Available: https://ec.europa.eu/eurostat/databrowser/view/demo_gind/default/table</p>
+<p>[10] S. Bond, A. Leblebicioǧlu, and F. Schiantarelli, 'Capital accumulation and growth: a new look at the empirical evidence,' <em>Journal of Applied Econometrics</em>, vol. 25, no. 7, pp. 1073–1099, 2010, doi: 10.1002/jae.1163.</p>
+<p>[11] R. J. Barro, 'Determinants of Economic Growth in a Panel of Countries'.</p>
+</div>
+</div>
+
+</div><!-- end poster-body -->
+</div><!-- end poster -->
